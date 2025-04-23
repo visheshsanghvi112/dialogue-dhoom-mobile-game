@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,30 +14,28 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
     try {
       await register(email, username, password);
       navigate("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
     }
   };
-  
-  // Redirect if already authenticated
+
   if (authState.isAuthenticated) {
     navigate("/");
     return null;
   }
-  
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
       <div className="w-full max-w-md">
@@ -49,7 +46,6 @@ const Register = () => {
           </h1>
           <p className="text-white/70">Create your account</p>
         </div>
-        
         <div className="bollywood-card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -61,9 +57,9 @@ const Register = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
+                className="bollywood-input"
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -72,37 +68,41 @@ const Register = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="BollywoodFan123"
                 required
+                className="bollywood-input"
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="bollywood-input"
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="text-xs text-bollywood-accent underline focus:outline-none mt-1"
+              >
+                {showPassword ? "Hide Password" : "Show Password"}
+              </button>
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="bollywood-input"
               />
             </div>
-            
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
-            )}
-            
+            {error && <div className="text-red-500 text-sm">{error}</div>}
             <Button 
               type="submit" 
               className="bollywood-primary-button w-full"
@@ -116,7 +116,6 @@ const Register = () => {
               Register
             </Button>
           </form>
-          
           <div className="mt-6 text-center">
             <p>
               Already have an account?{" "}

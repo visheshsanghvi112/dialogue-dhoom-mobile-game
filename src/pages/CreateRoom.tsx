@@ -1,34 +1,39 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useGameContext } from "@/context/GameContext";
+import { useAuthContext } from "@/context/AuthContext";
 
 const CreateRoom = () => {
   const navigate = useNavigate();
   const { createRoom } = useGameContext();
-  const [playerName, setPlayerName] = useState("");
+  const { authState } = useAuthContext();
+  const [playerName, setPlayerName] = useState(authState.user?.username || "");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleCreate = () => {
-    if (playerName.trim().length < 2) return;
-    
+  const handleCreate = async () => {
+    if (playerName.trim().length < 2) {
+      setError("Please enter a name with at least 2 characters");
+      return;
+    }
     setIsLoading(true);
-    createRoom(playerName.trim());
-    
-    // Simulate network delay
-    setTimeout(() => {
+    setError(null);
+    try {
+      await createRoom(playerName.trim());
       setIsLoading(false);
       navigate("/lobby");
-    }, 1000);
+    } catch (e: any) {
+      setError(e.message || "Failed to create room");
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
       <div className="bollywood-card w-full max-w-md p-8">
         <h1 className="text-2xl font-bold text-center mb-6">Create a New Game Room</h1>
-        
         <div className="space-y-6">
           <div>
             <label htmlFor="playerName" className="block text-sm font-medium mb-2">
@@ -48,7 +53,7 @@ const CreateRoom = () => {
               This name will be visible to other players
             </p>
           </div>
-          
+          {error && <div className="text-red-500 text-sm">{error}</div>}
           <Button 
             onClick={handleCreate} 
             className="bollywood-primary-button w-full"
@@ -56,7 +61,6 @@ const CreateRoom = () => {
           >
             {isLoading ? "Creating Room..." : "Create Room"}
           </Button>
-          
           <Button 
             variant="outline" 
             className="w-full" 

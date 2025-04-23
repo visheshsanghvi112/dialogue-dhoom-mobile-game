@@ -1,11 +1,9 @@
+import { createContext, useContext, useState, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { GameContextType, GameState, Player, Difficulty } from "@/types/gameTypes";
 
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { GameContextType, GameState, Player, Difficulty } from '@/types/gameTypes';
-import { generateRoomCode, getRandomDialogue, getDifficultyForRound } from '@/data/sampleData';
-
-// Initial game state
 const initialGameState: GameState = {
-  roomCode: '',
+  roomCode: "",
   players: [],
   currentRound: 0,
   maxRounds: 10,
@@ -18,59 +16,113 @@ const initialGameState: GameState = {
   waitingForNextRound: false,
 };
 
-// Create context
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Provider component
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  // Create a new game room
-  const createRoom = (playerName: string) => {
-    const roomCode = generateRoomCode();
-    const hostPlayer: Player = {
-      id: `player-${Date.now()}`,
-      name: playerName,
-      avatar: '👑', // Host gets a crown
+  const createRoom = async (playerName: string) => {
+    const { data, error } = await supabase
+      .rpc("generate_unique_room_code", {})
+    if (error) throw new Error("Failed to generate room code");
+
+    const code = data;
+    const { data: userInfo } = await supabase.auth.getUser();
+    if (!userInfo.user) throw new Error("Not authenticated");
+
+    const { data: room, error: roomError } = await supabase
+      .from("rooms")
+      .insert({
+        code,
+        host_id: userInfo.user.id,
+        is_active: true,
+        max_players: 10,
+        max_rounds: 10,
+      })
+      .select()
+      .single();
+
+    if (roomError) throw new Error("Failed to create room");
+
+    const avatar = "👑";
+    await supabase.from("room_players").insert({
+      room_id: room.id,
+      user_id: userInfo.user.id,
       score: 0,
-      isHost: true,
-    };
+      avatar,
+    });
+    await supabase
+      .from("profiles")
+      .update({ username: playerName, avatar })
+      .eq("id", userInfo.user.id);
 
     setGameState({
       ...initialGameState,
+      roomCode: code,
+      players: [{
+        id: userInfo.user.id,
+        name: playerName,
+        avatar,
+        score: 0,
+        isHost: true,
+      }],
+    });
+  };
+
+  const joinRoom = async (roomCode: string, playerName: string) => {
+    const { data: room, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("code", roomCode)
+      .single();
+    if (error || !room) throw new Error("Room not found");
+
+    const { data: userInfo } = await supabase.auth.getUser();
+    if (!userInfo.user) throw new Error("Not authenticated");
+
+    const { data: existing } = await supabase
+      .from("room_players")
+      .select("*")
+      .eq("room_id", room.id)
+      .eq("user_id", userInfo.user.id)
+      .maybeSingle();
+
+    const avatar = "😎";
+    if (!existing) {
+      await supabase.from("room_players").insert({
+        room_id: room.id,
+        user_id: userInfo.user.id,
+        score: 0,
+        avatar,
+      });
+    }
+
+    await supabase
+      .from("profiles")
+      .update({ username: playerName, avatar })
+      .eq("id", userInfo.user.id);
+
+    const { data: playerRows } = await supabase
+      .from("room_players")
+      .select("user_id, score, avatar, user:profiles(username)")
+      .eq("room_id", room.id);
+
+    const players = (playerRows || []).map((row: any) => ({
+      id: row.user_id,
+      name: row.user?.username || "Player",
+      avatar: row.avatar,
+      score: row.score,
+      isHost: room.host_id === row.user_id,
+    }));
+
+    setGameState((prev) => ({
+      ...prev,
       roomCode,
-      players: [hostPlayer],
-    });
+      players,
+    }));
   };
 
-  // Join an existing room
-  const joinRoom = (roomCode: string, playerName: string) => {
-    // For now, we'll just simulate joining by adding a player
-    // In a real app, this would verify the room exists
-    const newPlayer: Player = {
-      id: `player-${Date.now()}`,
-      name: playerName,
-      avatar: '😎', // Default avatar for joining players
-      score: 0,
-    };
-
-    setGameState((prevState) => {
-      // Prevent joining if game is active or if room is full
-      if (prevState.isGameActive || prevState.players.length >= 10) {
-        return prevState;
-      }
-
-      return {
-        ...prevState,
-        roomCode,
-        players: [...prevState.players, newPlayer],
-      };
-    });
-  };
-
-  // Start the game
   const startGame = () => {
-    // Get the first dialogue based on round 1 difficulty
     const difficulty = getDifficultyForRound(1);
     const firstDialogue = getRandomDialogue(difficulty);
 
@@ -85,14 +137,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       answersSubmitted: {},
       answerTimes: {},
       waitingForNextRound: false,
-      roundEndTime: Date.now() + 60000, // 60 seconds from now
+      roundEndTime: Date.now() + 60000,
     }));
   };
 
-  // Submit an answer for a player
   const submitAnswer = (playerId: string, answer: string) => {
     setGameState((prevState) => {
-      // Skip if the round is not active or player already answered
       if (!prevState.isRoundActive) {
         return prevState;
       }
@@ -108,12 +158,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         [playerId]: now,
       };
 
-      // Calculate score if answer is correct
       let updatedPlayers = [...prevState.players];
       if (answer === prevState.currentDialogue?.correctAnswer) {
-        // Give more points for faster answers
-        const elapsedSeconds = prevState.roundEndTime ? 
-          Math.max(0, 60 - (now - (prevState.roundEndTime - 60000)) / 1000) : 
+        const elapsedSeconds = prevState.roundEndTime ?
+          Math.max(0, 60 - (now - (prevState.roundEndTime - 60000)) / 1000) :
           prevState.timeRemaining;
         
         const timeBonus = Math.ceil(elapsedSeconds / 10);
@@ -130,7 +178,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           return player;
         });
       } else {
-        // Still record answer time for incorrect answers
         updatedPlayers = updatedPlayers.map((player) => {
           if (player.id === playerId) {
             return {
@@ -142,7 +189,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
-      // Check if all players have answered
       const allAnswered = updatedPlayers.length === Object.keys(updatedAnswers).length;
       
       return {
@@ -154,35 +200,28 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       };
     });
   };
-  
-  // Change an already submitted answer
+
   const changeAnswer = (playerId: string, answer: string) => {
     setGameState((prevState) => {
-      // Skip if the round is not active
       if (!prevState.isRoundActive) {
         return prevState;
       }
       
-      // Update the answer
       const updatedAnswers = {
         ...prevState.answersSubmitted,
         [playerId]: answer,
       };
       
-      // Update the answer time
       const now = Date.now();
       const updatedAnswerTimes = {
         ...prevState.answerTimes,
         [playerId]: now,
       };
       
-      // Recalculate score
       let updatedPlayers = [...prevState.players];
       
-      // First, remove any previous points for this question
       const previousAnswer = prevState.answersSubmitted[playerId];
       if (previousAnswer === prevState.currentDialogue?.correctAnswer) {
-        // Find how many points were awarded for the previous correct answer
         const player = prevState.players.find(p => p.id === playerId);
         if (player) {
           const prevElapsedSeconds = prevState.roundEndTime ?
@@ -192,7 +231,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           const prevTimeBonus = Math.ceil(prevElapsedSeconds / 10);
           const prevPointsAwarded = 10 + prevTimeBonus;
           
-          // Remove these points
           updatedPlayers = updatedPlayers.map((p) => {
             if (p.id === playerId) {
               return {
@@ -205,7 +243,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Now add points if the new answer is correct
       if (answer === prevState.currentDialogue?.correctAnswer) {
         const elapsedSeconds = prevState.roundEndTime ?
           Math.max(0, 60 - (now - (prevState.roundEndTime - 60000)) / 1000) :
@@ -225,7 +262,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           return player;
         });
       } else {
-        // Still record answer time for incorrect answers
         updatedPlayers = updatedPlayers.map((player) => {
           if (player.id === playerId) {
             return {
@@ -246,12 +282,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  // Move to the next round
   const nextRound = () => {
     setGameState((prevState) => {
       const nextRoundNumber = prevState.currentRound + 1;
 
-      // Check if game is over
       if (nextRoundNumber > prevState.maxRounds) {
         return {
           ...prevState,
@@ -261,7 +295,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         };
       }
 
-      // Get new dialogue for the next round
       const difficulty = getDifficultyForRound(nextRoundNumber);
       const nextDialogue = getRandomDialogue(difficulty);
 
@@ -275,17 +308,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         waitingForNextRound: false,
         answersSubmitted: {},
         answerTimes: {},
-        roundEndTime: Date.now() + 60000, // 60 seconds from now
+        roundEndTime: Date.now() + 60000,
       };
     });
   };
 
-  // Reset the game to initial state
   const resetGame = () => {
     setGameState(initialGameState);
   };
 
-  // Context value
   const contextValue: GameContextType = {
     gameState,
     createRoom,
@@ -300,7 +331,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   return <GameContext.Provider value={contextValue}>{children}</GameContext.Provider>;
 };
 
-// Custom hook for using the game context
 export const useGameContext = (): GameContextType => {
   const context = useContext(GameContext);
   if (context === undefined) {

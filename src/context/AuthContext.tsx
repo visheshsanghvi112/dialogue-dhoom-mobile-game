@@ -1,7 +1,7 @@
-
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthContextType, AuthState, User } from '@/types/gameTypes';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from "@/integrations/supabase/client";
 
 // Initial auth state
 const initialAuthState: AuthState = {
@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authState, setAuthState] = useState<AuthState>(() => {
-    // Check if user exists in localStorage
+    // Load user from localStorage (as fallback), but Supabase will be source of truth now
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -26,116 +26,159 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           isAuthenticated: true,
           isLoading: false,
         };
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-      }
+      } catch {}
     }
     return initialAuthState;
   });
 
-  // Mock login function (in a real app, this would call an API)
-  const login = async (email: string, password: string) => {
-    setAuthState(prev => ({ ...prev, isLoading: true }));
-    
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, simple validation
-      if (!email.includes('@') || password.length < 6) {
-        throw new Error('Invalid email or password');
-      }
-      
-      // Create mock user
-      const user: User = {
-        id: `user-${Date.now()}`,
-        email,
-        username: email.split('@')[0],
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Store user in localStorage
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Update auth state
+  // Setup Supabase session sync on mount
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setAuthState({
-        user,
+        user: session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email ?? "",
+              username: session.user.user_metadata?.username ?? session.user.email ?? "",
+              createdAt: session.user.created_at ?? "",
+            }
+          : null,
+        isAuthenticated: !!session?.user,
+        isLoading: false,
+      });
+      if (session?.user) {
+        localStorage.setItem("user", JSON.stringify({
+          id: session.user.id,
+          email: session.user.email,
+          username: session.user.user_metadata?.username ?? session.user.email ?? "",
+          createdAt: session.user.created_at ?? "",
+        }));
+      } else {
+        localStorage.removeItem('user');
+      }
+    };
+    getUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthState({
+        user: session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email ?? "",
+              username: session.user.user_metadata?.username ?? session.user.email ?? "",
+              createdAt: session.user.created_at ?? "",
+            }
+          : null,
+        isAuthenticated: !!session?.user,
+        isLoading: false,
+      });
+      if (session?.user) {
+        localStorage.setItem("user", JSON.stringify({
+          id: session.user.id,
+          email: session.user.email,
+          username: session.user.user_metadata?.username ?? session.user.email ?? "",
+          createdAt: session.user.created_at ?? "",
+        }));
+      } else {
+        localStorage.removeItem("user");
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, []);
+
+  // Supabase-based login
+  const login = async (email: string, password: string) => {
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.user) {
+        throw new Error(error?.message ?? "Login failed");
+      }
+      setAuthState({
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? "",
+          username: data.user.user_metadata?.username ?? data.user.email ?? "",
+          createdAt: data.user.created_at ?? "",
+        },
         isAuthenticated: true,
         isLoading: false,
       });
-      
       toast({
-        title: 'Logged in successfully',
-        description: `Welcome back, ${user.username}!`,
+        title: "Logged in successfully",
+        description: `Welcome back, ${data.user.user_metadata?.username ?? data.user.email}!`,
       });
-    } catch (error) {
+      localStorage.setItem("user", JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.user_metadata?.username ?? data.user.email,
+        createdAt: data.user.created_at ?? "",
+      }));
+    } catch (error: any) {
       toast({
-        variant: 'destructive',
-        title: 'Login failed',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: "destructive",
+        title: "Login failed",
+        description: error?.message ?? "An unknown error occurred",
       });
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
     }
   };
-  
-  // Mock register function
+
+  // Supabase-based register
   const register = async (email: string, username: string, password: string) => {
-    setAuthState(prev => ({ ...prev, isLoading: true }));
-    
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Validate inputs
-      if (!email.includes('@')) {
-        throw new Error('Invalid email address');
-      }
-      if (username.length < 3) {
-        throw new Error('Username must be at least 3 characters');
-      }
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
-      }
-      
-      // Create mock user
-      const user: User = {
-        id: `user-${Date.now()}`,
+      const { data, error } = await supabase.auth.signUp({
         email,
-        username,
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Store user in localStorage
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Update auth state
+        password,
+        options: { data: { username } }
+      });
+      if (error || !data.user) {
+        throw new Error(error?.message ?? "Registration failed");
+      }
       setAuthState({
-        user,
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? "",
+          username: username,
+          createdAt: data.user.created_at ?? "",
+        },
         isAuthenticated: true,
         isLoading: false,
       });
-      
       toast({
-        title: 'Registration successful',
+        title: "Registration successful",
         description: `Welcome, ${username}!`,
       });
-    } catch (error) {
+      localStorage.setItem("user", JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        username: username,
+        createdAt: data.user.created_at ?? "",
+      }));
+    } catch (error: any) {
       toast({
-        variant: 'destructive',
-        title: 'Registration failed',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: "destructive",
+        title: "Registration failed",
+        description: error?.message ?? "An unknown error occurred",
       });
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
     }
   };
-  
+
   // Logout function
-  const logout = () => {
-    localStorage.removeItem('user');
+  const logout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("user");
     setAuthState(initialAuthState);
     toast({
-      title: 'Logged out',
-      description: 'Come back soon!',
+      title: "Logged out",
+      description: "Come back soon!",
     });
   };
 

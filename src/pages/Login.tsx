@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthContext } from "@/context/AuthContext";
-import { LogIn, Loader } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -13,25 +12,25 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
     try {
       await login(email, password);
       navigate("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+    } catch (err: any) {
+      setError(err.message || "Login failed");
     }
   };
-  
+
   // Redirect if already authenticated
   if (authState.isAuthenticated) {
     navigate("/");
     return null;
   }
-  
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
       <div className="w-full max-w-md">
@@ -42,7 +41,6 @@ const Login = () => {
           </h1>
           <p className="text-white/70">Login to continue</p>
         </div>
-        
         <div className="bollywood-card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -54,25 +52,29 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
+                className="bollywood-input"
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="bollywood-input"
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="text-xs text-bollywood-accent underline focus:outline-none mt-1"
+              >
+                {showPassword ? "Hide Password" : "Show Password"}
+              </button>
             </div>
-            
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
-            )}
-            
+            {error && <div className="text-red-500 text-sm">{error}</div>}
             <Button 
               type="submit" 
               className="bollywood-primary-button w-full"
@@ -86,7 +88,6 @@ const Login = () => {
               Login
             </Button>
           </form>
-          
           <div className="mt-6 text-center">
             <p>
               Don't have an account?{" "}

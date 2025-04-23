@@ -9,13 +9,107 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      room_players: {
+        Row: {
+          avatar: string | null
+          id: string
+          joined_at: string
+          room_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          avatar?: string | null
+          id?: string
+          joined_at?: string
+          room_id: string
+          score?: number
+          user_id: string
+        }
+        Update: {
+          avatar?: string | null
+          id?: string
+          joined_at?: string
+          room_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          code: string
+          created_at: string
+          current_round: number
+          host_id: string
+          id: string
+          is_active: boolean
+          max_players: number
+          max_rounds: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_round?: number
+          host_id: string
+          id?: string
+          is_active?: boolean
+          max_players?: number
+          max_rounds?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_round?: number
+          host_id?: string
+          id?: string
+          is_active?: boolean
+          max_players?: number
+          max_rounds?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_unique_room_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
