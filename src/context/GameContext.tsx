@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GameContextType, GameState, Player, Difficulty } from "@/types/gameTypes";
@@ -215,9 +216,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("You must be logged in to join a room");
       }
 
-      const { count, error: countError } = await supabase
+      // Fixed: Get the exact count of players in the room
+      const { data: playerRows, error: countError } = await supabase
         .from("room_players")
-        .select("*", { count: 'exact', head: true })
+        .select("*")
         .eq("room_id", room.id);
         
       if (countError) {
@@ -225,9 +227,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Could not verify room capacity");
       }
       
-      console.log(`Room ${roomCode} has ${count} players out of ${room.max_players} max`);
+      const playerCount = playerRows ? playerRows.length : 0;
+      console.log(`Room ${roomCode} has ${playerCount} players out of ${room.max_players} max`);
       
-      if (count !== null && count >= room.max_players) {
+      if (playerCount >= room.max_players) {
         throw new Error(`Room is full (max ${room.max_players} players)`);
       }
 
