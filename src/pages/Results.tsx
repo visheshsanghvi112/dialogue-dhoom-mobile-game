@@ -10,10 +10,13 @@ const Results = () => {
   const navigate = useNavigate();
   const { gameState, resetGame } = useGameContext();
   const { players } = gameState;
-  const winners = getWinners(players);
+  
+  // Make sure players is initialized before getting winners
+  const winners = players && players.length > 0 ? getWinners(players) : [];
 
   useEffect(() => {
-    if (players.length === 0) {
+    // Redirect if no players data
+    if (!players || players.length === 0) {
       navigate("/");
     }
   }, [players, navigate]);
@@ -28,32 +31,42 @@ const Results = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white">Game Over!</h1>
-          {winners.length === 1 ? (
-            <div className="mt-4 text-center">
-              <div className="text-2xl text-bollywood-gold font-bold mb-2">
-                {winners[0].name} is the Bollywood Guru!
+          {winners && winners.length > 0 ? (
+            winners.length === 1 ? (
+              <div className="mt-4 text-center">
+                <div className="text-2xl text-bollywood-gold font-bold mb-2">
+                  {winners[0].name} is the Bollywood Guru!
+                </div>
+                <div className="text-5xl mb-3">🏆</div>
+                <div className="text-white/80">
+                  With {winners[0].score} points
+                </div>
               </div>
-              <div className="text-5xl mb-3">🏆</div>
-              <div className="text-white/80">
-                With {winners[0].score} points
+            ) : (
+              <div className="mt-4 text-center">
+                <div className="text-2xl text-bollywood-gold font-bold mb-2">
+                  It's a tie between {winners.map(w => w.name).join(" & ")}!
+                </div>
+                <div className="text-3xl mb-3">🏆 🏆</div>
+                <div className="text-white/80">
+                  With {winners[0] && winners[0].score} points each
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="mt-4 text-center">
               <div className="text-2xl text-bollywood-gold font-bold mb-2">
-                It's a tie between {winners.map(w => w.name).join(" & ")}!
-              </div>
-              <div className="text-3xl mb-3">🏆 🏆</div>
-              <div className="text-white/80">
-                With {winners[0].score} points each
+                No winners yet!
               </div>
             </div>
           )}
         </div>
 
-        <div className="mt-8">
-          <Leaderboard players={players} title="Final Scores" />
-        </div>
+        {players && players.length > 0 && (
+          <div className="mt-8">
+            <Leaderboard players={players} title="Final Scores" />
+          </div>
+        )}
 
         <div className="mt-8 flex flex-col gap-3">
           <Button 

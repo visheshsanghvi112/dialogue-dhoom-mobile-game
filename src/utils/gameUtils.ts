@@ -20,13 +20,17 @@ export const calculateScore = (timeRemaining: number): number => {
 
 // Get winner(s) - can handle ties
 export const getWinners = (players: Player[]): Player[] => {
-  if (players.length === 0) return [];
+  if (!players || players.length === 0) return [];
+  
+  // Remove any players with undefined scores or convert to 0
+  const validPlayers = players.filter(p => p && typeof p.score === 'number');
+  if (validPlayers.length === 0) return [];
   
   // Find the highest score
-  const highestScore = Math.max(...players.map(p => p.score));
+  const highestScore = Math.max(...validPlayers.map(p => p.score));
   
   // Return all players with the highest score (handles ties)
-  return players.filter(player => player.score === highestScore);
+  return validPlayers.filter(player => player.score === highestScore);
 };
 
 // Shuffle an array (for randomizing answer options)
@@ -41,6 +45,8 @@ export const shuffleArray = <T>(array: T[]): T[] => {
 
 // Check if all players have submitted their answers
 export const allPlayersAnswered = (answersSubmitted: Record<string, string>, players: Player[]): boolean => {
+  if (!players || players.length === 0) return false;
+  if (!answersSubmitted) return false;
   return Object.keys(answersSubmitted).length === players.length;
 };
 
