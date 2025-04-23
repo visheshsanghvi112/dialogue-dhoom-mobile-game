@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GameContextType, GameState, Player, Difficulty } from "@/types/gameTypes";
@@ -24,51 +23,77 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
   const createRoom = async (playerName: string) => {
-    const { data, error } = await supabase
-      .rpc("generate_unique_room_code", {})
-    if (error) throw new Error("Failed to generate room code");
+    try {
+      const { data: generatedCode, error: codeError } = await supabase
+        .rpc("generate_unique_room_code");
+        
+      if (codeError) {
+        console.error("Failed to generate room code via RPC:", codeError);
+        throw new Error("Failed to generate room code");
+      }
 
-    const code = data;
-    const { data: userInfo } = await supabase.auth.getUser();
-    if (!userInfo.user) throw new Error("Not authenticated");
+      const code = generatedCode;
+      console.log("Generated room code:", code);
 
-    const { data: room, error: roomError } = await supabase
-      .from("rooms")
-      .insert({
-        code,
-        host_id: userInfo.user.id,
-        is_active: true,
-        max_players: 10,
-        max_rounds: 10,
-      })
-      .select()
-      .single();
+      const { data: userInfo, error: userError } = await supabase.auth.getUser();
+      if (userError || !userInfo.user) {
+        console.error("Authentication error:", userError);
+        throw new Error("Not authenticated");
+      }
 
-    if (roomError) throw new Error("Failed to create room");
+      const { data: room, error: roomError } = await supabase
+        .from("rooms")
+        .insert({
+          code,
+          host_id: userInfo.user.id,
+          is_active: true,
+          max_players: 10,
+          max_rounds: 10,
+        })
+        .select()
+        .single();
 
-    const avatar = "👑";
-    await supabase.from("room_players").insert({
-      room_id: room.id,
-      user_id: userInfo.user.id,
-      score: 0,
-      avatar,
-    });
-    await supabase
-      .from("profiles")
-      .update({ username: playerName, avatar })
-      .eq("id", userInfo.user.id);
+      if (roomError) {
+        console.error("Room creation error:", roomError);
+        throw new Error("Failed to create room");
+      }
 
-    setGameState({
-      ...initialGameState,
-      roomCode: code,
-      players: [{
-        id: userInfo.user.id,
-        name: playerName,
-        avatar,
+      const avatar = "👑";
+      const { error: playerError } = await supabase.from("room_players").insert({
+        room_id: room.id,
+        user_id: userInfo.user.id,
         score: 0,
-        isHost: true,
-      }],
-    });
+        avatar,
+      });
+
+      if (playerError) {
+        console.error("Failed to add player to room:", playerError);
+      }
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ username: playerName, avatar })
+        .eq("id", userInfo.user.id);
+
+      if (profileError) {
+        console.error("Failed to update profile:", profileError);
+      }
+
+      setGameState({
+        ...initialGameState,
+        roomCode: code,
+        players: [{
+          id: userInfo.user.id,
+          name: playerName,
+          avatar,
+          score: 0,
+          isHost: true,
+        }],
+      });
+    } catch (error) {
+      console.error("Create room error:", error);
+      throw error;
+    }
   };
 
   const joinRoom = async (roomCode: string, playerName: string) => {
@@ -159,7 +184,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         ...prevState.answerTimes,
         [playerId]: now,
       };
-
+      
       let updatedPlayers = [...prevState.players];
       if (answer === prevState.currentDialogue?.correctAnswer) {
         const elapsedSeconds = prevState.roundEndTime ?
@@ -168,7 +193,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         
         const timeBonus = Math.ceil(elapsedSeconds / 10);
         const pointsAwarded = 10 + timeBonus;
-
+        
         updatedPlayers = updatedPlayers.map((player) => {
           if (player.id === playerId) {
             return {

@@ -1,10 +1,11 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthContext } from "@/context/AuthContext";
-import { Loader, LogIn } from "lucide-react";
+import { Loader2, LogIn as LogInIcon } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -80,9 +81,9 @@ const Login = () => {
               disabled={authState.isLoading}
             >
               {authState.isLoading ? (
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <LogIn className="mr-2 h-4 w-4" />
+                <LogInIcon className="mr-2 h-4 w-4" />
               )}
               Login
             </Button>
