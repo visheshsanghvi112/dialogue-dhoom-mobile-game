@@ -61,7 +61,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+                // Bollywood game custom colors
+                bollywood: {
+                    primary: '#9b87f5',
+                    secondary: '#7E69AB',
+                    tertiary: '#6E59A5',
+                    dark: '#1A1F2C',
+                    light: '#D6BCFA',
+                    gold: '#FEF7CD',
+                    accent: '#FFDEE2',
+                    correct: '#F2FCE2',
+                    incorrect: '#ea384c'
+                }
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +96,53 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+                'fade-in': {
+                    '0%': {
+                        opacity: '0',
+                        transform: 'translateY(10px)'
+                    },
+                    '100%': {
+                        opacity: '1',
+                        transform: 'translateY(0)'
+                    }
+                },
+                'scale-in': {
+                    '0%': {
+                        transform: 'scale(0.95)',
+                        opacity: '0'
+                    },
+                    '100%': {
+                        transform: 'scale(1)',
+                        opacity: '1'
+                    }
+                },
+                'pulse-soft': {
+                    '0%, 100%': {
+                        opacity: '1'
+                    },
+                    '50%': {
+                        opacity: '0.8'
+                    }
+                },
+                'confetti': {
+                    '0%': {
+                        transform: 'translateY(0) rotate(0)',
+                        opacity: '1'
+                    },
+                    '100%': {
+                        transform: 'translateY(100vh) rotate(720deg)',
+                        opacity: '0'
+                    }
+                }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+                'fade-in': 'fade-in 0.3s ease-out',
+                'scale-in': 'scale-in 0.2s ease-out',
+                'pulse-soft': 'pulse-soft 2s infinite ease-in-out',
+                'confetti': 'confetti 2s ease-out forwards'
 			}
 		}
 	},

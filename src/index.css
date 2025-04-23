@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -96,6 +98,47 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-['Poppins',sans-serif];
+    background: linear-gradient(to bottom, #1A1F2C, #6E59A5);
+    min-height: 100vh;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .bollywood-card {
+    @apply rounded-xl border-2 border-bollywood-gold bg-white/90 shadow-lg p-4 overflow-hidden relative;
+  }
+
+  .bollywood-button {
+    @apply px-6 py-3 rounded-full text-white font-semibold shadow-md transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-opacity-50;
+  }
+
+  .bollywood-primary-button {
+    @apply bollywood-button bg-bollywood-primary hover:bg-bollywood-secondary focus:ring-bollywood-light;
+  }
+
+  .bollywood-secondary-button {
+    @apply bollywood-button bg-bollywood-secondary hover:bg-bollywood-tertiary focus:ring-bollywood-primary;
+  }
+
+  .bollywood-input {
+    @apply bg-white/90 border-2 border-bollywood-secondary rounded-lg px-4 py-3 text-center font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-bollywood-primary focus:border-transparent;
+  }
+
+  .bollywood-dialogue {
+    @apply text-lg md:text-xl font-medium italic p-6 bg-bollywood-light/30 rounded-xl border border-bollywood-gold/50 shadow-inner;
+  }
+  
+  .bollywood-answer {
+    @apply px-5 py-3 my-2 rounded-lg border-2 transition-all duration-200 
+    hover:scale-[1.02] cursor-pointer font-medium text-left w-full flex items-center;
+  }
+  
+  .confetti {
+    @apply fixed pointer-events-none w-2 h-4 rounded-full animate-confetti;
   }
 }
