@@ -1,8 +1,8 @@
-
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GameContextType, GameState, Player, Difficulty } from "@/types/gameTypes";
 import { getDifficultyForRound, getRandomDialogue } from "@/data/sampleData";
+import { toast } from "@/components/ui/use-toast";
 
 const initialGameState: GameState = {
   roomCode: "",
@@ -22,10 +22,69 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
+  
+  useEffect(() => {
+    if (!gameState.roomCode) return;
+    
+    const channel = supabase
+      .channel('room_player_changes')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public',
+          table: 'room_players'
+        },
+        (payload) => {
+          console.log('Room player change detected:', payload);
+          if (gameState.roomCode) {
+            refreshPlayers(gameState.roomCode);
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameState.roomCode]);
+  
+  const refreshPlayers = async (roomCode: string) => {
+    try {
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("code", roomCode)
+        .single();
+        
+      if (!room) return;
+      
+      const { data: playerRows } = await supabase
+        .from("room_players")
+        .select("user_id, score, avatar, user:profiles(username)")
+        .eq("room_id", room.id);
+        
+      if (!playerRows) return;
+      
+      const updatedPlayers = playerRows.map((row: any) => ({
+        id: row.user_id,
+        name: row.user?.username || "Player",
+        avatar: row.avatar,
+        score: row.score,
+        isHost: room.host_id === row.user_id,
+      }));
+      
+      setGameState(prev => ({
+        ...prev,
+        players: updatedPlayers
+      }));
+    } catch (error) {
+      console.error("Error refreshing players:", error);
+    }
+  };
 
   const createRoom = async (playerName: string) => {
     try {
-      // Generate room code using the newly updated Supabase function
       const { data: generatedCode, error: codeError } = await supabase
         .rpc("generate_unique_room_code");
         
@@ -34,21 +93,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Could not generate a unique room code. Please try again.");
       }
 
-      // Ensure the generated code is a valid 6-character string
       if (!generatedCode || generatedCode.length !== 6) {
         throw new Error("Invalid room code generated");
       }
 
       console.log("Generated unique room code:", generatedCode);
 
-      // Get current user information
       const { data: userInfo, error: userError } = await supabase.auth.getUser();
       if (userError || !userInfo.user) {
         console.error("Authentication error:", userError);
         throw new Error("You must be logged in to create a room");
       }
 
-      // Insert room with the generated code
       const { data: room, error: roomError } = await supabase
         .from("rooms")
         .insert({
@@ -66,7 +122,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Failed to create game room. Please try again.");
       }
 
-      // Add host to room players
       const avatar = "👑";
       const { error: playerError } = await supabase.from("room_players").insert({
         room_id: room.id,
@@ -80,7 +135,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Could not join the created room");
       }
 
-      // Update user profile with player name and avatar
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ username: playerName, avatar })
@@ -88,10 +142,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       if (profileError) {
         console.error("Failed to update profile:", profileError);
-        // Non-critical error, so we won't throw
       }
 
-      // Update game state with new room and player information
+      toast({
+        title: "Room Created!",
+        description: `Your room code is ${generatedCode}`,
+      });
+
       setGameState({
         ...initialGameState,
         roomCode: generatedCode,
@@ -106,61 +163,111 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error) {
       console.error("Create room error:", error);
-      throw error; // Re-throw to allow caller to handle the error
+      throw error;
     }
   };
 
   const joinRoom = async (roomCode: string, playerName: string) => {
-    const { data: room, error } = await supabase
-      .from("rooms")
-      .select("*")
-      .eq("code", roomCode)
-      .single();
-    if (error || !room) throw new Error("Room not found");
+    try {
+      const { data: room, error } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("code", roomCode)
+        .eq("is_active", true)
+        .single();
+        
+      if (error || !room) {
+        console.error("Room not found or inactive:", error);
+        throw new Error("Room not found or no longer active");
+      }
 
-    const { data: userInfo } = await supabase.auth.getUser();
-    if (!userInfo.user) throw new Error("Not authenticated");
+      const { data: userInfo, error: userError } = await supabase.auth.getUser();
+      if (userError || !userInfo.user) {
+        console.error("Authentication error:", userError);
+        throw new Error("You must be logged in to join a room");
+      }
 
-    const { data: existing } = await supabase
-      .from("room_players")
-      .select("*")
-      .eq("room_id", room.id)
-      .eq("user_id", userInfo.user.id)
-      .maybeSingle();
+      const { data: playerCount, error: countError } = await supabase
+        .from("room_players")
+        .select("count", { count: 'exact' })
+        .eq("room_id", room.id);
+        
+      if (countError) {
+        console.error("Error checking room capacity:", countError);
+        throw new Error("Could not verify room capacity");
+      }
+      
+      if ((playerCount as any).count >= room.max_players) {
+        throw new Error(`Room is full (max ${room.max_players} players)`);
+      }
 
-    const avatar = "😎";
-    if (!existing) {
-      await supabase.from("room_players").insert({
-        room_id: room.id,
-        user_id: userInfo.user.id,
-        score: 0,
-        avatar,
+      const { data: existingPlayer } = await supabase
+        .from("room_players")
+        .select("*")
+        .eq("room_id", room.id)
+        .eq("user_id", userInfo.user.id)
+        .maybeSingle();
+
+      const avatar = room.host_id === userInfo.user.id ? "👑" : "😎";
+
+      if (!existingPlayer) {
+        const { error: joinError } = await supabase.from("room_players").insert({
+          room_id: room.id,
+          user_id: userInfo.user.id,
+          score: 0,
+          avatar,
+        });
+
+        if (joinError) {
+          console.error("Failed to join room:", joinError);
+          throw new Error("Could not join the room");
+        }
+      } else {
+        console.log("User already in room, updating profile");
+      }
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ username: playerName, avatar })
+        .eq("id", userInfo.user.id);
+
+      if (profileError) {
+        console.error("Failed to update profile:", profileError);
+      }
+
+      const { data: playerRows, error: playersError } = await supabase
+        .from("room_players")
+        .select("user_id, score, avatar, user:profiles(username)")
+        .eq("room_id", room.id);
+
+      if (playersError) {
+        console.error("Failed to get room players:", playersError);
+        throw new Error("Could not retrieve room players");
+      }
+
+      const players = (playerRows || []).map((row: any) => ({
+        id: row.user_id,
+        name: row.user?.username || "Player",
+        avatar: row.avatar,
+        score: row.score,
+        isHost: room.host_id === row.user_id,
+      }));
+
+      toast({
+        title: "Room Joined!",
+        description: `You've joined room ${roomCode}`,
       });
+
+      setGameState((prev) => ({
+        ...prev,
+        roomCode: roomCode,
+        players,
+      }));
+      
+    } catch (error: any) {
+      console.error("Join room error:", error);
+      throw error;
     }
-
-    await supabase
-      .from("profiles")
-      .update({ username: playerName, avatar })
-      .eq("id", userInfo.user.id);
-
-    const { data: playerRows } = await supabase
-      .from("room_players")
-      .select("user_id, score, avatar, user:profiles(username)")
-      .eq("room_id", room.id);
-
-    const players = (playerRows || []).map((row: any) => ({
-      id: row.user_id,
-      name: row.user?.username || "Player",
-      avatar: row.avatar,
-      score: row.score,
-      isHost: room.host_id === row.user_id,
-    }));
-
-    setGameState((prev) => ({
-      ...prev,
-      roomCode,
-      players,
-    }));
   };
 
   const startGame = () => {
