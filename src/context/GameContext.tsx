@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GameContextType, GameState, Player, Difficulty } from "@/types/gameTypes";
@@ -24,27 +25,34 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   const createRoom = async (playerName: string) => {
     try {
+      // Generate room code using the newly updated Supabase function
       const { data: generatedCode, error: codeError } = await supabase
         .rpc("generate_unique_room_code");
         
       if (codeError) {
-        console.error("Failed to generate room code via RPC:", codeError);
-        throw new Error("Failed to generate room code");
+        console.error("Failed to generate room code:", codeError);
+        throw new Error("Could not generate a unique room code. Please try again.");
       }
 
-      const code = generatedCode;
-      console.log("Generated room code:", code);
+      // Ensure the generated code is a valid 6-character string
+      if (!generatedCode || generatedCode.length !== 6) {
+        throw new Error("Invalid room code generated");
+      }
 
+      console.log("Generated unique room code:", generatedCode);
+
+      // Get current user information
       const { data: userInfo, error: userError } = await supabase.auth.getUser();
       if (userError || !userInfo.user) {
         console.error("Authentication error:", userError);
-        throw new Error("Not authenticated");
+        throw new Error("You must be logged in to create a room");
       }
 
+      // Insert room with the generated code
       const { data: room, error: roomError } = await supabase
         .from("rooms")
         .insert({
-          code,
+          code: generatedCode,
           host_id: userInfo.user.id,
           is_active: true,
           max_players: 10,
@@ -55,9 +63,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       if (roomError) {
         console.error("Room creation error:", roomError);
-        throw new Error("Failed to create room");
+        throw new Error("Failed to create game room. Please try again.");
       }
 
+      // Add host to room players
       const avatar = "👑";
       const { error: playerError } = await supabase.from("room_players").insert({
         room_id: room.id,
@@ -68,8 +77,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       if (playerError) {
         console.error("Failed to add player to room:", playerError);
+        throw new Error("Could not join the created room");
       }
 
+      // Update user profile with player name and avatar
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ username: playerName, avatar })
@@ -77,11 +88,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       if (profileError) {
         console.error("Failed to update profile:", profileError);
+        // Non-critical error, so we won't throw
       }
 
+      // Update game state with new room and player information
       setGameState({
         ...initialGameState,
-        roomCode: code,
+        roomCode: generatedCode,
         players: [{
           id: userInfo.user.id,
           name: playerName,
@@ -90,9 +103,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           isHost: true,
         }],
       });
+
     } catch (error) {
       console.error("Create room error:", error);
-      throw error;
+      throw error; // Re-throw to allow caller to handle the error
     }
   };
 
