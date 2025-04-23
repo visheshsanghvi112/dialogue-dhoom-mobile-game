@@ -1,9 +1,13 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useGameContext } from "@/context/GameContext";
 import { useAuthContext } from "@/context/AuthContext";
+import { Loader2 } from "lucide-react";
+import Footer from "@/components/Footer";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const CreateRoom = () => {
   const navigate = useNavigate();
@@ -22,10 +26,10 @@ const CreateRoom = () => {
     setError(null);
     try {
       await createRoom(playerName.trim());
-      setIsLoading(false);
       navigate("/lobby");
     } catch (e: any) {
       setError(e.message || "Failed to create room");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -48,28 +52,46 @@ const CreateRoom = () => {
               className="bollywood-input"
               maxLength={15}
               autoComplete="off"
+              disabled={isLoading}
             />
             <p className="text-xs text-gray-500 mt-1">
               This name will be visible to other players
             </p>
           </div>
-          {error && <div className="text-red-500 text-sm">{error}</div>}
+          
+          {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <Button 
             onClick={handleCreate} 
             className="bollywood-primary-button w-full"
             disabled={playerName.trim().length < 2 || isLoading}
           >
-            {isLoading ? "Creating Room..." : "Create Room"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Room...
+              </>
+            ) : (
+              "Create Room"
+            )}
           </Button>
+          
           <Button 
             variant="outline" 
             className="w-full" 
             onClick={() => navigate("/")}
+            disabled={isLoading}
           >
             Back to Home
           </Button>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

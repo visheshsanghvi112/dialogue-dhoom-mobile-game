@@ -57,14 +57,28 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         .eq("code", roomCode)
         .single();
         
-      if (!room) return;
+      if (!room) {
+        toast({
+          title: "Error",
+          description: "Room not found",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data: playerRows } = await supabase
         .from("room_players")
         .select("user_id, score, avatar, user:profiles(username)")
         .eq("room_id", room.id);
         
-      if (!playerRows) return;
+      if (!playerRows) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch players",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const updatedPlayers = playerRows.map((row: any) => ({
         id: row.user_id,
@@ -74,12 +88,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         isHost: room.host_id === row.user_id,
       }));
       
+      console.log("Updated players list:", updatedPlayers);
+      
       setGameState(prev => ({
         ...prev,
         players: updatedPlayers
       }));
     } catch (error) {
       console.error("Error refreshing players:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh player list",
+        variant: "destructive",
+      });
     }
   };
 
@@ -161,8 +182,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         }],
       });
 
-    } catch (error) {
+      setTimeout(() => refreshPlayers(generatedCode), 500);
+
+    } catch (error: any) {
       console.error("Create room error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create room",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -172,7 +200,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const { data: room, error } = await supabase
         .from("rooms")
         .select("*")
-        .eq("code", roomCode)
+        .eq("code", roomCode.toUpperCase())
         .eq("is_active", true)
         .single();
         
@@ -187,9 +215,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("You must be logged in to join a room");
       }
 
-      const { data: playerCount, error: countError } = await supabase
+      const { count, error: countError } = await supabase
         .from("room_players")
-        .select("count", { count: 'exact' })
+        .select("*", { count: 'exact', head: true })
         .eq("room_id", room.id);
         
       if (countError) {
@@ -197,7 +225,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Could not verify room capacity");
       }
       
-      if ((playerCount as any).count >= room.max_players) {
+      console.log(`Room ${roomCode} has ${count} players out of ${room.max_players} max`);
+      
+      if (count !== null && count >= room.max_players) {
         throw new Error(`Room is full (max ${room.max_players} players)`);
       }
 
@@ -224,6 +254,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         console.log("User already in room, updating profile");
+        const { error: updateError } = await supabase
+          .from("room_players")
+          .update({ avatar })
+          .eq("room_id", room.id)
+          .eq("user_id", userInfo.user.id);
+          
+        if (updateError) {
+          console.error("Failed to update player:", updateError);
+        }
       }
 
       const { error: profileError } = await supabase
@@ -255,17 +294,24 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       toast({
         title: "Room Joined!",
-        description: `You've joined room ${roomCode}`,
+        description: `You've joined room ${roomCode.toUpperCase()}`,
       });
 
       setGameState((prev) => ({
         ...prev,
-        roomCode: roomCode,
+        roomCode: roomCode.toUpperCase(),
         players,
       }));
       
+      setTimeout(() => refreshPlayers(roomCode.toUpperCase()), 500);
+      
     } catch (error: any) {
       console.error("Join room error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join room",
+        variant: "destructive",
+      });
       throw error;
     }
   };

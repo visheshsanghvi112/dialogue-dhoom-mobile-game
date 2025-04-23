@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/context/AuthContext";
 import { LogOut } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -70,6 +71,8 @@ const Index = () => {
         <p>Up to 10 players • 10 rounds • Increasing difficulty</p>
         <p className="mt-1">Famous dialogues from Hero, Villain, Romance & Comedy scenes</p>
       </div>
+      
+      <Footer />
     </div>
   );
 };
