@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,6 @@ const Login = () => {
     }
   };
 
-  // Redirect if already authenticated
   if (authState.isAuthenticated) {
     navigate("/");
     return null;
