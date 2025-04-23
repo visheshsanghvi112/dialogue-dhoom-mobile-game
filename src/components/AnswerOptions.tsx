@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface AnswerOptionsProps {
   options: string[];
@@ -18,8 +18,15 @@ const AnswerOptions = ({
 }: AnswerOptionsProps) => {
   const [selected, setSelected] = useState<string | null>(selectedAnswer || null);
 
+  // Update selected when the selectedAnswer prop changes
+  useEffect(() => {
+    if (selectedAnswer) {
+      setSelected(selectedAnswer);
+    }
+  }, [selectedAnswer]);
+
   const handleSelect = (answer: string) => {
-    if (disabled || selected) return;
+    if (disabled) return;
     
     setSelected(answer);
     onSelect(answer);
@@ -61,9 +68,9 @@ const AnswerOptions = ({
         <button
           key={index}
           onClick={() => handleSelect(option)}
-          disabled={disabled || !!selected}
+          disabled={disabled}
           className={`bollywood-answer ${getButtonStyle(option)} ${
-            disabled ? "opacity-80 cursor-not-allowed" : ""
+            disabled && option !== selected ? "opacity-80 cursor-not-allowed" : ""
           }`}
         >
           <span className="mr-3 h-6 w-6 flex items-center justify-center rounded-full bg-bollywood-primary/20 text-bollywood-primary font-bold">

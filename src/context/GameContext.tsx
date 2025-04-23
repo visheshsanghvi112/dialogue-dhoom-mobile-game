@@ -14,6 +14,8 @@ const initialGameState: GameState = {
   isGameActive: false,
   isRoundActive: false,
   answersSubmitted: {},
+  answerTimes: {},
+  waitingForNextRound: false,
 };
 
 // Create context
@@ -81,6 +83,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       timeRemaining: 60,
       showHint: false,
       answersSubmitted: {},
+      answerTimes: {},
+      waitingForNextRound: false,
+      roundEndTime: Date.now() + 60000, // 60 seconds from now
     }));
   };
 
@@ -88,20 +93,30 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const submitAnswer = (playerId: string, answer: string) => {
     setGameState((prevState) => {
       // Skip if the round is not active or player already answered
-      if (!prevState.isRoundActive || prevState.answersSubmitted[playerId]) {
+      if (!prevState.isRoundActive) {
         return prevState;
       }
 
+      const now = Date.now();
       const updatedAnswers = {
         ...prevState.answersSubmitted,
         [playerId]: answer,
+      };
+      
+      const updatedAnswerTimes = {
+        ...prevState.answerTimes,
+        [playerId]: now,
       };
 
       // Calculate score if answer is correct
       let updatedPlayers = [...prevState.players];
       if (answer === prevState.currentDialogue?.correctAnswer) {
         // Give more points for faster answers
-        const timeBonus = Math.ceil(prevState.timeRemaining / 10);
+        const elapsedSeconds = prevState.roundEndTime ? 
+          Math.max(0, 60 - (now - (prevState.roundEndTime - 60000)) / 1000) : 
+          prevState.timeRemaining;
+        
+        const timeBonus = Math.ceil(elapsedSeconds / 10);
         const pointsAwarded = 10 + timeBonus;
 
         updatedPlayers = updatedPlayers.map((player) => {
@@ -109,16 +124,124 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             return {
               ...player,
               score: player.score + pointsAwarded,
+              answerTime: now,
+            };
+          }
+          return player;
+        });
+      } else {
+        // Still record answer time for incorrect answers
+        updatedPlayers = updatedPlayers.map((player) => {
+          if (player.id === playerId) {
+            return {
+              ...player,
+              answerTime: now,
             };
           }
           return player;
         });
       }
 
+      // Check if all players have answered
+      const allAnswered = updatedPlayers.length === Object.keys(updatedAnswers).length;
+      
       return {
         ...prevState,
         players: updatedPlayers,
         answersSubmitted: updatedAnswers,
+        answerTimes: updatedAnswerTimes,
+        waitingForNextRound: allAnswered,
+      };
+    });
+  };
+  
+  // Change an already submitted answer
+  const changeAnswer = (playerId: string, answer: string) => {
+    setGameState((prevState) => {
+      // Skip if the round is not active
+      if (!prevState.isRoundActive) {
+        return prevState;
+      }
+      
+      // Update the answer
+      const updatedAnswers = {
+        ...prevState.answersSubmitted,
+        [playerId]: answer,
+      };
+      
+      // Update the answer time
+      const now = Date.now();
+      const updatedAnswerTimes = {
+        ...prevState.answerTimes,
+        [playerId]: now,
+      };
+      
+      // Recalculate score
+      let updatedPlayers = [...prevState.players];
+      
+      // First, remove any previous points for this question
+      const previousAnswer = prevState.answersSubmitted[playerId];
+      if (previousAnswer === prevState.currentDialogue?.correctAnswer) {
+        // Find how many points were awarded for the previous correct answer
+        const player = prevState.players.find(p => p.id === playerId);
+        if (player) {
+          const prevElapsedSeconds = prevState.roundEndTime ?
+            Math.max(0, 60 - (player.answerTime || 0 - (prevState.roundEndTime - 60000)) / 1000) :
+            prevState.timeRemaining;
+          
+          const prevTimeBonus = Math.ceil(prevElapsedSeconds / 10);
+          const prevPointsAwarded = 10 + prevTimeBonus;
+          
+          // Remove these points
+          updatedPlayers = updatedPlayers.map((p) => {
+            if (p.id === playerId) {
+              return {
+                ...p,
+                score: p.score - prevPointsAwarded,
+              };
+            }
+            return p;
+          });
+        }
+      }
+      
+      // Now add points if the new answer is correct
+      if (answer === prevState.currentDialogue?.correctAnswer) {
+        const elapsedSeconds = prevState.roundEndTime ?
+          Math.max(0, 60 - (now - (prevState.roundEndTime - 60000)) / 1000) :
+          prevState.timeRemaining;
+        
+        const timeBonus = Math.ceil(elapsedSeconds / 10);
+        const pointsAwarded = 10 + timeBonus;
+        
+        updatedPlayers = updatedPlayers.map((player) => {
+          if (player.id === playerId) {
+            return {
+              ...player,
+              score: player.score + pointsAwarded,
+              answerTime: now,
+            };
+          }
+          return player;
+        });
+      } else {
+        // Still record answer time for incorrect answers
+        updatedPlayers = updatedPlayers.map((player) => {
+          if (player.id === playerId) {
+            return {
+              ...player,
+              answerTime: now,
+            };
+          }
+          return player;
+        });
+      }
+      
+      return {
+        ...prevState,
+        players: updatedPlayers,
+        answersSubmitted: updatedAnswers,
+        answerTimes: updatedAnswerTimes,
       };
     });
   };
@@ -134,6 +257,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           ...prevState,
           isRoundActive: false,
           isGameActive: false,
+          waitingForNextRound: false,
         };
       }
 
@@ -148,7 +272,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         timeRemaining: 60,
         showHint: false,
         isRoundActive: true,
+        waitingForNextRound: false,
         answersSubmitted: {},
+        answerTimes: {},
+        roundEndTime: Date.now() + 60000, // 60 seconds from now
       };
     });
   };
@@ -165,6 +292,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     joinRoom,
     startGame,
     submitAnswer,
+    changeAnswer,
     nextRound,
     resetGame,
   };

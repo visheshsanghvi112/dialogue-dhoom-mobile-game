@@ -4,12 +4,13 @@ import { useNavigate } from "react-router-dom";
 import DialogueCard from "@/components/DialogueCard";
 import AnswerOptions from "@/components/AnswerOptions";
 import GameTimer from "@/components/GameTimer";
+import WaitingScreen from "@/components/WaitingScreen";
 import { useGameContext } from "@/context/GameContext";
 import { allPlayersAnswered } from "@/utils/gameUtils";
 
 const Game = () => {
   const navigate = useNavigate();
-  const { gameState, submitAnswer, nextRound } = useGameContext();
+  const { gameState, submitAnswer, changeAnswer, nextRound } = useGameContext();
   const {
     players,
     currentRound,
@@ -20,6 +21,7 @@ const Game = () => {
     isRoundActive,
     isGameActive,
     answersSubmitted,
+    waitingForNextRound,
   } = gameState;
 
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
@@ -53,7 +55,12 @@ const Game = () => {
 
   // Handle player answer submission
   const handleAnswerSubmit = (answer: string) => {
-    submitAnswer(currentPlayer.id, answer);
+    // If player already answered, it's a change of answer
+    if (answersSubmitted[currentPlayer.id]) {
+      changeAnswer(currentPlayer.id, answer);
+    } else {
+      submitAnswer(currentPlayer.id, answer);
+    }
     
     // Once all players answer or time's up, show correct answer
     if (allPlayersAnswered(answersSubmitted, players)) {
@@ -101,19 +108,28 @@ const Game = () => {
           </div>
         </div>
         
-        {isRoundActive && (
+        {isRoundActive && !waitingForNextRound && (
           <div className="mt-4">
             <GameTimer
               initialTime={60}
               onTimeUp={handleTimeUp}
               onHintTime={handleHintTime}
-              isActive={isRoundActive && !showCorrectAnswer && !hasAnswered}
+              isActive={isRoundActive && !showCorrectAnswer && !waitingForNextRound}
             />
           </div>
         )}
       </div>
 
-      {currentDialogue && (
+      {waitingForNextRound ? (
+        <div className="w-full max-w-2xl mx-auto">
+          <WaitingScreen
+            players={players}
+            answersSubmitted={answersSubmitted}
+            timeRemaining={null}
+            onNextRound={nextRound}
+          />
+        </div>
+      ) : currentDialogue && (
         <>
           <DialogueCard dialogue={currentDialogue} showHint={showHint} />
           
@@ -122,7 +138,7 @@ const Game = () => {
               options={currentDialogue.options}
               correctAnswer={showCorrectAnswer ? currentDialogue.correctAnswer : null}
               onSelect={handleAnswerSubmit}
-              disabled={showCorrectAnswer || hasAnswered}
+              disabled={showCorrectAnswer}
               selectedAnswer={answersSubmitted[currentPlayer.id]}
             />
           </div>
