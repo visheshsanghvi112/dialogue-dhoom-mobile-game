@@ -1,19 +1,9 @@
-# Welcome to your Lovable project
 
-## Project info
+# Welcome to TS project
 
-**URL**: https://lovable.dev/projects/f43c0008-66cf-48d3-b825-9586dfe18147
+Created by Vishesh Sanghvi - https://www.visheshsanghvi.me/
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/f43c0008-66cf-48d3-b825-9586dfe18147) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
+ 
 **Use your preferred IDE**
 
 If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
@@ -59,15 +49,13 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+ 
+## License
 
-## How can I deploy this project?
+Copyright © 2024 Vishesh Sanghvi (https://www.visheshsanghvi.me/)
 
-Simply open [Lovable](https://lovable.dev/projects/f43c0008-66cf-48d3-b825-9586dfe18147) and click on Share -> Publish.
+All rights reserved. This project and its source code are the exclusive property of Vishesh Sanghvi. 
+Unauthorized copying, modification, distribution, or use of this software is strictly prohibited 
+without explicit written permission from the copyright owner.
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+For inquiries about licensing or usage, please contact Vishesh Sanghvi via his personal website.
