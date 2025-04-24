@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -37,19 +38,19 @@ const Register = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-white">
+    <div className="h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
+      <div className="w-full max-w-md animate-fade-in">
+        <div className="text-center mb-8 animate-scale-in">
+          <h1 className="text-4xl font-bold text-white mb-3">
             <span className="text-bollywood-gold">Dialogues</span> Ka{" "}
             <span className="text-bollywood-accent">Jadoo</span>
           </h1>
-          <p className="text-white/70">Create your account</p>
+          <p className="text-white/80 text-lg">Create your account today!</p>
         </div>
-        <div className="bollywood-card p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bollywood-card p-8 shadow-2xl backdrop-blur-sm bg-white/95">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-700 text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -57,22 +58,22 @@ const Register = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
-                className="bollywood-input"
+                className="bollywood-input text-black placeholder:text-gray-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-gray-700 text-sm">Username</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="BollywoodFan123"
                 required
-                className="bollywood-input"
+                className="bollywood-input text-black placeholder:text-gray-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-gray-700 text-sm">Password</Label>
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -80,18 +81,11 @@ const Register = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="bollywood-input"
+                className="bollywood-input text-black placeholder:text-gray-400"
               />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="text-xs text-bollywood-accent underline focus:outline-none mt-1"
-              >
-                {showPassword ? "Hide Password" : "Show Password"}
-              </button>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-700 text-sm">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type={showPassword ? "text" : "password"}
@@ -99,13 +93,24 @@ const Register = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="bollywood-input"
+                className="bollywood-input text-black placeholder:text-gray-400"
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="text-xs text-bollywood-accent hover:text-bollywood-secondary transition-colors focus:outline-none mt-1"
+              >
+                {showPassword ? "Hide Password" : "Show Password"}
+              </button>
             </div>
-            {error && <div className="text-red-500 text-sm">{error}</div>}
+            {error && (
+              <div className="text-red-500 text-sm animate-shake p-2 bg-red-50 rounded-md">
+                {error}
+              </div>
+            )}
             <Button 
               type="submit" 
-              className="bollywood-primary-button w-full"
+              className="w-full h-12 bg-bollywood-gold hover:bg-bollywood-gold/90 text-black font-semibold transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
               disabled={authState.isLoading}
             >
               {authState.isLoading ? (
@@ -116,10 +121,13 @@ const Register = () => {
               Register
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <p>
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
               Already have an account?{" "}
-              <Link to="/login" className="text-bollywood-accent hover:underline">
+              <Link 
+                to="/login" 
+                className="text-bollywood-accent hover:text-bollywood-secondary transition-colors hover:underline"
+              >
                 Login
               </Link>
             </p>
