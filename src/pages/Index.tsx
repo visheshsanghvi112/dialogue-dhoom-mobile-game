@@ -11,7 +11,7 @@ const Index = () => {
   const { user } = authState;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary">
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gradient-to-b from-bollywood-dark to-bollywood-tertiary relative">
       <div className="absolute top-4 right-4 flex items-center gap-3">
         {user && (
           <>
@@ -31,43 +31,41 @@ const Index = () => {
         )}
       </div>
 
-      <div className="text-center mb-8">
+      <div className="w-full max-w-md text-center mb-8 animate-fade-in">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-2">
           <span className="text-bollywood-gold">Dialogues</span> Ka{" "}
           <span className="text-bollywood-accent">Jadoo</span>
         </h1>
-        <p className="text-white/80 text-lg md:text-xl">
+        <p className="text-white/80 text-lg md:text-xl mb-8">
           The Ultimate Bollywood Dialogue Guessing Game
         </p>
-      </div>
 
-      <div className="bollywood-card w-full max-w-md p-8 shadow-2xl">
-        <div className="flex flex-col gap-4">
+        <div className="bollywood-card w-full p-8 shadow-2xl space-y-4">
           <Button 
-            className="bollywood-primary-button h-14 text-lg"
+            className="bollywood-primary-button w-full h-14 text-lg"
             onClick={() => navigate("/create-room")}
           >
             Create Room
           </Button>
           <Button 
-            className="bollywood-secondary-button h-14 text-lg"
+            className="bollywood-secondary-button w-full h-14 text-lg"
             onClick={() => navigate("/join-room")} 
           >
             Join Room
           </Button>
-        </div>
-        
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">
-            Create a room and invite your friends to play!
-          </p>
-          <p className="text-sm text-gray-600 mt-2">
-            Test your Bollywood knowledge with famous movie dialogues.
-          </p>
+          
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Create a room and invite your friends to play!
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Test your Bollywood knowledge with famous movie dialogues.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="mt-8 text-center text-white/60 text-xs">
+      <div className="text-center text-white/60 text-xs mt-6">
         <p>Up to 10 players • 10 rounds • Increasing difficulty</p>
         <p className="mt-1">Famous dialogues from Hero, Villain, Romance & Comedy scenes</p>
       </div>
